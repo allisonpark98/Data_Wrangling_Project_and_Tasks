@@ -1,0 +1,109 @@
+---
+title: "QBS 181 Homework 2"
+author: "Allison Park"
+date: "10/23/2020"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(RODBC)
+library(sqldf)
+library(dplyr)
+library(lubridate)
+```
+
+```{r 1}
+myconn<-odbcConnect("QBS181","hpark","hpark@qbs181")
+phonecall_encounter<-sqlQuery(myconn,"select * from Phonecall_Encounter")
+
+phonecall_encounter$enrollmentGroup <- case_when(
+  phonecall_encounter$EncounterCode == 125060000 ~ "Clinical Alert",
+  phonecall_encounter$EncounterCode == 125060001 ~ "Health Coaching",
+  phonecall_encounter$EncounterCode == 125060002 ~ "Technical Question",
+  phonecall_encounter$EncounterCode == 125060003 ~ "Administrative",
+  phonecall_encounter$EncounterCode == 125060004 ~ "Other",
+  phonecall_encounter$EncounterCode == 125060005 ~ "Lack of Engagement")
+phonecall_encounter[sample(nrow(phonecall_encounter), 10), ]
+```
+
+```{r 2}
+phonecall_encounter %>%
+  group_by(enrollmentGroup) %>%
+  count()
+```
+
+```{r 3}
+callduration<-sqlQuery(myconn,"select * from CallDuration")
+callduration <- callduration %>% rename(CustomerId = tri_CustomerIDEntityReference)
+q3 <- merge(phonecall_encounter,callduration,by="CustomerId")
+q3[sample(nrow(q3), 10), ]
+```
+
+```{r 4}
+# call type
+q3$CallType <- case_when(
+  q3$CallType == 1 ~ "Inbound",
+  q3$CallType == 2 ~ "Outbound")
+q3 %>%
+  group_by(CallType) %>%
+  count()
+
+# call outcome
+q3$CallOutcome <- case_when(
+  q3$CallOutcome == 1 ~ "No response",
+  q3$CallOutcome == 2 ~ "Left voice mail",
+  q3$CallOutcome == 3 ~ "Successful")
+q3 %>%
+  group_by(CallOutcome) %>%
+  count()
+
+# assuming we are finding the average of call duration for each enrollment group:
+q3 %>%
+  group_by(enrollmentGroup) %>%
+  summarize(mean(CallDuration))
+```
+
+```{r 5}
+Demo<-sqlQuery(myconn,"select * from Demographics")
+conditions<-sqlQuery(myconn,"select * from dbo.Conditions")
+text<-sqlQuery(myconn,"select * from dbo.Text")
+
+text <- text %>% rename(contactid = tri_contactId)
+conditions <- conditions %>% rename(contactid = tri_patientid)
+
+q5 <- merge(merge(conditions,Demo,by="contactid"), text, by="contactid")
+q5[sample(nrow(q5), 10), ]
+
+# texts per week
+# for Clinician
+text %>%
+  filter(SenderName == "Clinician") %>%
+  count(week(TextSentDate))
+
+# for System
+text %>%
+  filter(SenderName == "System") %>%
+  count(week(TextSentDate))
+
+# for Customer
+text %>%
+  filter(SenderName == "Customer") %>%
+  count(week(TextSentDate))
+
+# To see as one
+text %>%
+  group_by(SenderName) %>%
+  count(week(TextSentDate))
+```
+
+```{r 6}
+q6 <- merge(conditions, text, by="contactid")
+q6 %>%
+  group_by(tri_name) %>%
+  count(week(TextSentDate))
+# over a period: week of 2016-03-01 through 2016-03-07
+q6 %>%
+  filter(TextSentDate >= '2016-03-01' & TextSentDate <= '2016-03-07') %>%
+  count(tri_name)
+```
+
