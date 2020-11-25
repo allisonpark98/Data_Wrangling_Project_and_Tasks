@@ -1,0 +1,163 @@
+---
+title: "QBS 181 Midterm"
+author: "Allison Park"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+install.packages("Hmisc")
+knitr::opts_chunk$set(echo = TRUE)
+library(Hmisc)
+library(tidyverse)
+library(sqldf)
+library(RODBC)
+mydata <-Hmisc::sasexport("/Users/allisonpark/Documents/Dartmouth/QBS/181 Data Wrangling/DIQ_I.XPT")
+install.packages("Hmisc", version='0.9.1')
+install.packages("Rtools")
+library(Hmisc)
+```
+
+## Looking for missing values or incorrect column types
+```{r }
+sapply(mydata, function(x) sum(is.na(x))) # seeing how many NAs for each variable
+# str(mydata) # looking for any incorrectly coded column types - all are int or num
+```
+
+## Separate unit of measure
+### Converting all values of DID060 (how long taking insulin) to in terms of months rather than years (from DIQ060U)
+```{r}
+mydata1 <- mydata
+mydata1 <- mydata1%>%
+  mutate(did060 = ifelse(diq060u == 2, did060*12, did060))
+mydata1 <- mydata1[,-34] # dropping column for measure
+```
+
+### Converting all values of DID260 (how often check blood for glucose/sugar) to in terms of years rather than days/week/month (from DIQ260U)
+```{r}
+mydata2 <- mydata1
+mydata2 <- mydata2%>%
+  mutate(did260 = ifelse(diq260u == 1, did260*365, did260), # days
+         did260 = ifelse(diq260u == 2, did260*52, did260), # weeks
+         did260 = ifelse(diq260u == 3, did260*12, did260)) # months
+mydata2 <- mydata2[,-39] # dropping column for measure
+```
+
+### Converting all values of DID350 (how often do you check your feet) to in terms of years rather than days/week/month (from DIQ350U)
+```{r}
+mydata3 <- mydata2
+mydata3 <- mydata3 %>%
+  mutate(did350 = ifelse(diq350u == 1, did350*365, did350),
+         did350 = ifelse(diq350u == 2, did350*52, did350),
+         did350 = ifelse(diq350u == 3, did350*12, did350))
+mydata3 <- mydata3[,-50] # dropping column for measure
+```
+
+## For DIQ175A:DIQ175X, recode into binary variables (1 for Yes, 0 for No)
+```{r }
+mydata4 <- mydata3
+mydata4 <- mydata4%>%    # replacing all "yes/positive" code with 1 and others with 0
+  mutate(diq175a = ifelse(diq175a == 10, 1, 0),
+         diq175b = ifelse(diq175b == 11, 1, 0),
+         diq175c = ifelse(diq175c == 12, 1, 0),
+         diq175d = ifelse(diq175d == 13, 1, 0),
+         diq175e = ifelse(diq175e == 14, 1, 0),
+         diq175f = ifelse(diq175f == 15, 1, 0),
+         diq175g = ifelse(diq175g == 16, 1, 0),
+         diq175h = ifelse(diq175h == 17, 1, 0),
+         diq175i = ifelse(diq175i == 18, 1, 0),
+         diq175j = ifelse(diq175j == 19, 1, 0),
+         diq175k = ifelse(diq175k == 20, 1, 0),
+         diq175l = ifelse(diq175l == 21, 1, 0),
+         diq175m = ifelse(diq175m == 22, 1, 0),
+         diq175n = ifelse(diq175n == 23, 1, 0),
+         diq175o = ifelse(diq175o == 24, 1, 0),
+         diq175p = ifelse(diq175p == 25, 1, 0),
+         diq175q = ifelse(diq175q == 26, 1, 0),
+         diq175r = ifelse(diq175r == 27, 1, 0),
+         diq175s = ifelse(diq175s == 28, 1, 0),
+         diq175t = ifelse(diq175t == 29, 1, 0),
+         diq175u = ifelse(diq175u == 30, 1, 0),
+         diq175v = ifelse(diq175v == 31, 1, 0),
+         diq175w = ifelse(diq175w == 32, 1, 0),
+         diq175x = ifelse(diq175x == 33, 1, 0))
+mydata4[6:30][is.na(mydata4[6:30])] <- 0 # replacing all NA's with 0s
+```
+
+## Mean inputation for missing values of numerical variables
+```{r}
+mydata5 <- mydata4
+mydata5$did040[is.na(mydata5$did040)] <- mean(mydata5$did040, na.rm = TRUE) # mean inputation
+mydata5$did060[is.na(mydata5$did060)] <- mean(mydata5$did060[which(mydata5$did060!=666)], na.rm = TRUE)
+mydata5$did250[is.na(mydata5$did250)] <- mean(mydata5$did250[which(mydata5$did250!=9999)], na.rm = TRUE)
+mydata5$did260[is.na(mydata5$did260)] <- mean(mydata5$did260, na.rm = TRUE)
+mydata5$diq280[is.na(mydata5$diq280)] <- mean(mydata5$diq280[which(mydata5$diq280!=999)], na.rm = TRUE)
+mydata5$diq300s[is.na(mydata5$diq300s)] <- mean(mydata5$diq300s[which(mydata5$diq300s!=9999)], na.rm = TRUE)
+mydata5$diq300d[is.na(mydata5$diq300d)] <- mean(mydata5$diq300d[which(mydata5$diq300d!=9999)], na.rm = TRUE)
+mydata5$did310s[is.na(mydata5$did310s)] <- mean(mydata5$did310s[which(mydata5$did310s!=6666|mydata5$did310s!=9999|mydata5$did310s!=7777)], na.rm = TRUE)
+mydata5$did310d[is.na(mydata5$did310d)] <- mean(mydata5$did310d[which(mydata5$did310d!=6666|mydata5$did310d!=9999|mydata5$did310d!=7777)], na.rm = TRUE)
+mydata5$did330[is.na(mydata5$did330)] <- mean(mydata5$did330[which(mydata5$did330!=6666|mydata5$did330!=9999|mydata5$did330!=7777)], na.rm = TRUE)
+mydata5$did341[is.na(mydata5$did341)] <- mean(mydata5$did341[which(mydata5$did341!=9999|mydata5$did341!=7777)], na.rm = TRUE)
+mydata5$did350[is.na(mydata5$did350)] <- mean(mydata5$did350[which(mydata5$did350!=9999)], na.rm = TRUE)
+
+```
+
+## Verifying counts of code and value to website data. All counts of codes/values are identical.
+```{r }
+mydata %>% count(diq010)
+mydata %>% filter(did040 <= 78) %>% count(sum(did040))
+mydata %>% filter(did040 > 78) %>% count(did040)
+mydata %>% count(diq160)
+mydata %>% count(diq170)
+mydata %>% count(diq172)
+mydata %>% count(diq175a)
+mydata %>% count(diq175b)
+mydata %>% count(diq175c)
+mydata %>% count(diq175d)
+mydata %>% count(diq175e)
+mydata %>% count(diq175f)
+mydata %>% count(diq175g)
+mydata %>% count(diq175i)
+mydata %>% count(diq175j)
+mydata %>% count(diq175k)
+mydata %>% count(diq175l)
+mydata %>% count(diq175m)
+mydata %>% count(diq175n)
+mydata %>% count(diq175o)
+mydata %>% count(diq175p)
+mydata %>% count(diq175q)
+mydata %>% count(diq175r)
+mydata %>% count(diq175s)
+mydata %>% count(diq175t)
+mydata %>% count(diq175u)
+mydata %>% count(diq175v)
+mydata %>% count(diq175w)
+mydata %>% count(diq175x)
+mydata %>% count(diq180)
+mydata %>% count(diq050)
+mydata %>% filter(did060 <= 55) %>% count(sum())
+mydata %>% filter(did060 > 55) %>% count(did060)
+mydata %>% count(diq060u)
+mydata %>% count(diq070)
+mydata %>% count(diq230)
+mydata %>% count(diq240)
+mydata %>% filter(did250 >= 1 & did250 <= 60) %>% count(sum())
+mydata %>% filter(did250 > 60 | did250 < 1) %>% count(did250)
+mydata %>% filter(did260 >= 1 & did260 <= 15) %>% count(sum())
+mydata %>% filter(!(did260 >= 1 & did260 <= 15)) %>% count(did260)
+mydata %>% count(diq260u)
+mydata %>% count(diq275)
+mydata %>% filter(diq280 >=2 & diq280 <=18.5) %>% count(sum(diq280))
+mydata %>% filter(!(diq280 >=2 & diq280 <=18.5)) %>% count(diq280)
+mydata %>% count(diq291)
+mydata %>% filter(diq300s >= 80 & diq300s <= 201) %>% count()
+mydata %>% filter(!(diq300s >= 80 & diq300s <= 201)) %>% count(diq300s)
+mydata %>% filter(diq300d >= 17 & diq300d <= 251) %>% count()
+mydata %>% filter(!(diq300d >= 17 & diq300d <= 251)) %>% count(diq300d)
+```
+
+```{r }
+sapply(mydata5, function(x) sum(is.na(x))) # seeing how many NAs for each variable for newest dataset
+# Exporting dataset into .csv
+write.csv(mydata5, "park_data.csv")
+```
+
