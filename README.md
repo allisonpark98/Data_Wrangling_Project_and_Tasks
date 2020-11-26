@@ -14,4 +14,4 @@ Project 3 includes the R code in which I work with data for TB cases by populati
 The midterm project uses raw data on diabetes from NHANES. I clean the data before further use and explore significant problems within the data. I further address various  data-related issues through the code included.  
 
 ## Final Project
-The final project uses a blood pressure dataset with the Demographics, Conditions, and Text datasets to not only tidy the data but also recode, merge, and explore the data in SQL. The code for the second question is repeated in R.
+The final project uses a blood pressure dataset with the Demographics, Conditions, and Text datasets to not only tidy the data but also recode, merge, and explore the data in SQL. The code for the second question is repeated in R. Questions #1a, 1b, 1c, and 2 are executed in SQL, and questions #1d, 1e, 1f, and 3 are in R. 
